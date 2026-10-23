@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>✨ Citation du jour</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      padding: 2rem;
+    }
+
+    .card {
+      background: #ffffff;
+      width: 100%;
+      max-width: 540px;
+      border-radius: 20px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+      padding: 2.5rem 2rem;
+      text-align: center;
+    }
+
+    .card h1 {
+      font-size: 1.4rem;
+      color: #333;
+      margin-bottom: 1.5rem;
+    }
+
+    #quote {
+      font-size: 1.3rem;
+      font-style: italic;
+      color: #2b2d42;
+      line-height: 1.6;
+      min-height: 110px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.3s ease;
+    }
+
+    #quote.fade {
+      opacity: 0;
+    }
+
+    #author {
+      margin-top: 1rem;
+      font-weight: 600;
+      color: #4facfe;
+    }
+
+    button {
+      margin-top: 2rem;
+      padding: 0.8rem 1.8rem;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #4facfe, #00f2fe);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>✨ Citation du jour</h1>
+    <p id="quote">Cliquez sur le bouton pour afficher une citation inspirante.</p>
+    <p id="author"></p>
+    <button id="new-quote-btn" type="button">Nouvelle citation</button>
+  </main>
+
+  <script>
+    // ---------------------------------------------------------
+    // Citation du jour — logique de la page
+    // Une liste de citations est tirée au sort à chaque clic.
+    // ---------------------------------------------------------
+
+    const QUOTES = [
+      { text: "La vie, c'est comme une bicyclette, il faut avancer pour ne pas perdre l'équilibre.", author: "Albert Einstein" },
+      { text: "Le succès, c'est tomber sept fois et se relever huit.", author: "Proverbe japonais" },
+      { text: "L'imagination est plus importante que le savoir.", author: "Albert Einstein" },
+      { text: "Ce n'est pas parce que les choses sont difficiles que nous n'osons pas, c'est parce que nous n'osons pas qu'elles sont difficiles.", author: "Sénèque" },
+      { text: "Le futur appartient à ceux qui croient à la beauté de leurs rêves.", author: "Eleanor Roosevelt" },
+      { text: "Il n'y a qu'une façon d'échouer, c'est d'abandonner avant d'avoir réussi.", author: "Georges Clemenceau" },
+      { text: "La meilleure façon de prédire l'avenir, c'est de le créer.", author: "Peter Drucker" },
+      { text: "Ne compte pas les jours, fais que les jours comptent.", author: "Muhammad Ali" },
+      { text: "Un pessimiste voit la difficulté dans chaque opportunité ; un optimiste voit l'opportunité dans chaque difficulté.", author: "Winston Churchill" },
+      { text: "Le doute est le commencement de la sagesse.", author: "Aristote" },
+    ];
+
+    const quoteEl = document.getElementById("quote");
+    const authorEl = document.getElementById("author");
+    const newQuoteBtn = document.getElementById("new-quote-btn");
+
+    let lastIndex = -1;
+
+    /**
+     * Choisit un index aléatoire différent du précédent, pour éviter
+     * d'afficher deux fois de suite la même citation.
+     * @returns {number}
+     */
+    function pickRandomIndex() {
+      if (QUOTES.length === 1) return 0;
+      let index;
+      do {
+        index = Math.floor(Math.random() * QUOTES.length);
+      } while (index === lastIndex);
+      return index;
+    }
+
+    /**
+     * Affiche une nouvelle citation aléatoire avec un petit effet de fondu.
+     */
+    function showRandomQuote() {
+      quoteEl.classList.add("fade");
+
+      setTimeout(() => {
+        const index = pickRandomIndex();
+        lastIndex = index;
+        const { text, author } = QUOTES[index];
+
+        quoteEl.textContent = `« ${text} »`;
+        authorEl.textContent = `— ${author}`;
+
+        quoteEl.classList.remove("fade");
+      }, 200);
+    }
+
+    newQuoteBtn.addEventListener("click", showRandomQuote);
+
+    // Affiche une première citation au chargement de la page.
+    showRandomQuote();
+  </script>
+</body>
+</html>
