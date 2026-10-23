@@ -11,42 +11,85 @@
       box-sizing: border-box;
     }
 
+    :root {
+      --bg-grad-start: #4facfe;
+      --bg-grad-end: #00f2fe;
+      --card-bg: #ffffff;
+      --title-color: #333;
+      --quote-color: #2b2d42;
+      --author-color: #0077b6;
+      --border-color: #e6e6ec;
+    }
+
+    body.dark {
+      --bg-grad-start: #232526;
+      --bg-grad-end: #0f2027;
+      --card-bg: #1e1e2f;
+      --title-color: #f1f1f1;
+      --quote-color: #f1f1f1;
+      --author-color: #4facfe;
+      --border-color: #35354a;
+    }
+
     body {
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      background: linear-gradient(135deg, var(--bg-grad-start) 0%, var(--bg-grad-end) 100%);
       padding: 2rem;
+      transition: background 0.3s ease;
     }
 
     .card {
-      background: #ffffff;
+      background: var(--card-bg);
       width: 100%;
-      max-width: 540px;
+      max-width: 560px;
       border-radius: 20px;
       box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
       padding: 2.5rem 2rem;
       text-align: center;
+      transition: background 0.3s ease;
     }
 
-    .card h1 {
-      font-size: 1.4rem;
-      color: #333;
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       margin-bottom: 1.5rem;
+    }
+
+    .card-header h1 {
+      font-size: 1.4rem;
+      color: var(--title-color);
+    }
+
+    .theme-toggle {
+      border: none;
+      background: transparent;
+      font-size: 1.3rem;
+      cursor: pointer;
+      line-height: 1;
+      padding: 4px 8px;
+      border-radius: 8px;
+      transition: background 0.2s;
+    }
+
+    .theme-toggle:hover {
+      background: rgba(79, 172, 254, 0.12);
     }
 
     #quote {
       font-size: 1.3rem;
       font-style: italic;
-      color: #2b2d42;
+      color: var(--quote-color);
       line-height: 1.6;
       min-height: 110px;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: opacity 0.3s ease;
+      transition: opacity 0.3s ease, color 0.3s ease;
     }
 
     #quote.fade {
@@ -56,40 +99,83 @@
     #author {
       margin-top: 1rem;
       font-weight: 600;
-      color: #4facfe;
+      color: var(--author-color);
     }
 
-    button {
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      justify-content: center;
       margin-top: 2rem;
-      padding: 0.8rem 1.8rem;
+    }
+
+    button.action-btn {
+      padding: 0.8rem 1.4rem;
       border: none;
       border-radius: 10px;
-      background: linear-gradient(135deg, #4facfe, #00f2fe);
-      color: #fff;
-      font-size: 1rem;
+      font-size: 0.95rem;
       font-weight: 600;
       cursor: pointer;
-      transition: opacity 0.2s;
+      transition: opacity 0.2s, transform 0.1s;
     }
 
-    button:hover {
+    button.action-btn:active {
+      transform: scale(0.97);
+    }
+
+    #new-quote-btn {
+      background: linear-gradient(135deg, #4facfe, #00f2fe);
+      color: #fff;
+    }
+
+    #copy-btn {
+      background: transparent;
+      border: 2px solid var(--border-color);
+      color: var(--title-color);
+    }
+
+    #share-btn {
+      background: #1d9bf0;
+      color: #fff;
+    }
+
+    button.action-btn:hover {
       opacity: 0.9;
     }
   </style>
 </head>
 <body>
   <main class="card">
-    <h1>✨ Citation du jour</h1>
+    <div class="card-header">
+      <h1>✨ Citation du jour</h1>
+      <button
+        id="theme-toggle"
+        class="theme-toggle"
+        type="button"
+        aria-label="Changer de thème"
+        title="Changer de thème"
+      >🌙</button>
+    </div>
+
     <p id="quote">Cliquez sur le bouton pour afficher une citation inspirante.</p>
     <p id="author"></p>
-    <button id="new-quote-btn" type="button">Nouvelle citation</button>
+
+    <div class="actions">
+      <button id="new-quote-btn" class="action-btn" type="button">🔄 Nouvelle citation</button>
+      <button id="copy-btn" class="action-btn" type="button">📋 Copier</button>
+      <button id="share-btn" class="action-btn" type="button">🐦 Partager sur X</button>
+    </div>
   </main>
 
   <script>
     // ---------------------------------------------------------
     // Citation du jour — logique de la page
     // Une liste de citations est tirée au sort à chaque clic.
+    // Thème clair/sombre mémorisé, copie et partage de la citation.
     // ---------------------------------------------------------
+
+    const THEME_STORAGE_KEY = "citation-du-jour-theme";
 
     const QUOTES = [
       { text: "La vie, c'est comme une bicyclette, il faut avancer pour ne pas perdre l'équilibre.", author: "Albert Einstein" },
@@ -102,11 +188,24 @@
       { text: "Ne compte pas les jours, fais que les jours comptent.", author: "Muhammad Ali" },
       { text: "Un pessimiste voit la difficulté dans chaque opportunité ; un optimiste voit l'opportunité dans chaque difficulté.", author: "Winston Churchill" },
       { text: "Le doute est le commencement de la sagesse.", author: "Aristote" },
+      { text: "On ne voit bien qu'avec le cœur. L'essentiel est invisible pour les yeux.", author: "Antoine de Saint-Exupéry" },
+      { text: "Il vaut mieux allumer une bougie que de maudire l'obscurité.", author: "Confucius" },
+      { text: "La persévérance est la clé de la réussite.", author: "Proverbe français" },
+      { text: "Choisis un travail que tu aimes et tu n'auras pas à travailler un seul jour de ta vie.", author: "Confucius" },
+      { text: "Le plus grand risque est de ne prendre aucun risque.", author: "Mark Zuckerberg" },
+      { text: "La simplicité est la sophistication suprême.", author: "Léonard de Vinci" },
+      { text: "Tout ce que tu peux imaginer est réel.", author: "Pablo Picasso" },
+      { text: "Soyez vous-même, les autres sont déjà pris.", author: "Oscar Wilde" },
+      { text: "Il n'est jamais trop tard pour être ce que l'on aurait pu être.", author: "George Eliot" },
+      { text: "La connaissance s'acquiert par l'expérience, tout le reste n'est que de l'information.", author: "Albert Einstein" },
     ];
 
     const quoteEl = document.getElementById("quote");
     const authorEl = document.getElementById("author");
     const newQuoteBtn = document.getElementById("new-quote-btn");
+    const copyBtn = document.getElementById("copy-btn");
+    const shareBtn = document.getElementById("share-btn");
+    const themeToggleBtn = document.getElementById("theme-toggle");
 
     let lastIndex = -1;
 
@@ -142,9 +241,85 @@
       }, 200);
     }
 
-    newQuoteBtn.addEventListener("click", showRandomQuote);
+    /**
+     * Construit le texte brut de la citation actuellement affichée.
+     * @returns {string}
+     */
+    function getCurrentQuoteText() {
+      return `${quoteEl.textContent} ${authorEl.textContent}`.trim();
+    }
 
-    // Affiche une première citation au chargement de la page.
+    /**
+     * Copie la citation affichée dans le presse-papiers, avec un
+     * retour visuel temporaire sur le bouton.
+     */
+    async function copyQuote() {
+      const text = getCurrentQuoteText();
+      const originalLabel = copyBtn.textContent;
+
+      try {
+        await navigator.clipboard.writeText(text);
+        copyBtn.textContent = "✅ Copié !";
+      } catch (error) {
+        copyBtn.textContent = "❌ Échec";
+      }
+
+      setTimeout(() => {
+        copyBtn.textContent = originalLabel;
+      }, 1500);
+    }
+
+    /**
+     * Ouvre une fenêtre de partage de la citation sur X (Twitter).
+     */
+    function shareOnX() {
+      const text = getCurrentQuoteText();
+      const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+
+    // --- Gestion du thème (clair / sombre) ---
+
+    /**
+     * Applique le thème donné et met à jour l'icône du bouton.
+     * @param {"light" | "dark"} theme
+     */
+    function applyTheme(theme) {
+      document.body.classList.toggle("dark", theme === "dark");
+      themeToggleBtn.textContent = theme === "dark" ? "☀️" : "🌙";
+    }
+
+    /**
+     * Initialise le thème depuis le localStorage, ou selon les préférences système.
+     */
+    function initTheme() {
+      const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+      const prefersDark =
+        window.matchMedia &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches;
+
+      applyTheme(savedTheme || (prefersDark ? "dark" : "light"));
+    }
+
+    /**
+     * Bascule entre thème clair et sombre, et sauvegarde le choix.
+     */
+    function toggleTheme() {
+      const isDark = document.body.classList.contains("dark");
+      const newTheme = isDark ? "light" : "dark";
+      applyTheme(newTheme);
+      localStorage.setItem(THEME_STORAGE_KEY, newTheme);
+    }
+
+    // --- Écouteurs d'évènements ---
+
+    newQuoteBtn.addEventListener("click", showRandomQuote);
+    copyBtn.addEventListener("click", copyQuote);
+    shareBtn.addEventListener("click", shareOnX);
+    themeToggleBtn.addEventListener("click", toggleTheme);
+
+    // --- Initialisation ---
+    initTheme();
     showRandomQuote();
   </script>
 </body>
