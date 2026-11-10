@@ -117,7 +117,7 @@
       font-size: 0.95rem;
       font-weight: 600;
       cursor: pointer;
-      transition: opacity 0.2s, transform 0.1s;
+      transition: opacity 0.2s, transform 0.1s, background 0.2s, color 0.2s;
     }
 
     button.action-btn:active {
@@ -140,8 +140,132 @@
       color: #fff;
     }
 
+    #favorite-btn {
+      background: transparent;
+      border: 2px solid var(--border-color);
+      color: var(--title-color);
+    }
+
+    #favorite-btn.is-active {
+      background: linear-gradient(135deg, #ffd166, #ff9f1c);
+      border-color: transparent;
+      color: #fff;
+    }
+
+    #favorites-view-btn {
+      background: transparent;
+      border: 2px solid var(--border-color);
+      color: var(--title-color);
+    }
+
     button.action-btn:hover {
       opacity: 0.9;
+    }
+
+    /* --- Modale des favoris --- */
+
+    .favorites-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      z-index: 1000;
+    }
+
+    .favorites-modal.open {
+      display: flex;
+    }
+
+    .favorites-modal-content {
+      background: var(--card-bg);
+      width: 100%;
+      max-width: 480px;
+      max-height: 80vh;
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      transition: background 0.3s ease;
+    }
+
+    .favorites-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .favorites-modal-header h2 {
+      font-size: 1.1rem;
+      color: var(--title-color);
+    }
+
+    .favorites-close-btn {
+      border: none;
+      background: transparent;
+      font-size: 1.2rem;
+      cursor: pointer;
+      color: var(--title-color);
+      line-height: 1;
+      padding: 4px 8px;
+      border-radius: 8px;
+    }
+
+    .favorites-close-btn:hover {
+      background: rgba(79, 172, 254, 0.12);
+    }
+
+    .favorites-list {
+      list-style: none;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .favorites-empty {
+      text-align: center;
+      color: var(--quote-color);
+      padding: 1rem 0;
+      font-style: italic;
+    }
+
+    .favorite-item {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 0.6rem 0.8rem;
+    }
+
+    .favorite-item-text {
+      flex: 1;
+      text-align: left;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      color: var(--quote-color);
+      font-size: 0.9rem;
+      font-style: italic;
+      line-height: 1.4;
+    }
+
+    .favorite-item-text strong {
+      color: var(--author-color);
+      font-style: normal;
+    }
+
+    .favorite-item-remove {
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 1rem;
+      flex-shrink: 0;
     }
   </style>
 </head>
@@ -165,17 +289,31 @@
       <button id="new-quote-btn" class="action-btn" type="button">🔄 Nouvelle citation</button>
       <button id="copy-btn" class="action-btn" type="button">📋 Copier</button>
       <button id="share-btn" class="action-btn" type="button">🐦 Partager sur X</button>
+      <button id="favorite-btn" class="action-btn" type="button" aria-pressed="false">☆ Favori</button>
+      <button id="favorites-view-btn" class="action-btn" type="button">📁 Favoris (0)</button>
     </div>
   </main>
+
+  <div id="favorites-modal" class="favorites-modal" aria-hidden="true">
+    <div class="favorites-modal-content" role="dialog" aria-modal="true" aria-label="Citations favorites">
+      <div class="favorites-modal-header">
+        <h2>⭐ Mes citations favorites</h2>
+        <button id="favorites-close-btn" class="favorites-close-btn" type="button" aria-label="Fermer">✖</button>
+      </div>
+      <ul id="favorites-list" class="favorites-list"></ul>
+    </div>
+  </div>
 
   <script>
     // ---------------------------------------------------------
     // Citation du jour — logique de la page
     // Une liste de citations est tirée au sort à chaque clic.
-    // Thème clair/sombre mémorisé, copie et partage de la citation.
+    // Thème clair/sombre mémorisé, copie, partage et favoris
+    // de la citation, persistés dans le localStorage.
     // ---------------------------------------------------------
 
     const THEME_STORAGE_KEY = "citation-du-jour-theme";
+    const FAVORITES_STORAGE_KEY = "citation-du-jour-favorites";
 
     const QUOTES = [
       { text: "La vie, c'est comme une bicyclette, il faut avancer pour ne pas perdre l'équilibre.", author: "Albert Einstein" },
@@ -206,8 +344,14 @@
     const copyBtn = document.getElementById("copy-btn");
     const shareBtn = document.getElementById("share-btn");
     const themeToggleBtn = document.getElementById("theme-toggle");
+    const favoriteBtn = document.getElementById("favorite-btn");
+    const favoritesViewBtn = document.getElementById("favorites-view-btn");
+    const favoritesModal = document.getElementById("favorites-modal");
+    const favoritesCloseBtn = document.getElementById("favorites-close-btn");
+    const favoritesListEl = document.getElementById("favorites-list");
 
     let lastIndex = -1;
+    let currentQuote = null;
 
     /**
      * Choisit un index aléatoire différent du précédent, pour éviter
@@ -224,21 +368,35 @@
     }
 
     /**
+     * Affiche une citation donnée dans la carte, avec un effet de
+     * fondu optionnel, et met à jour l'état du bouton favori.
+     * @param {{text: string, author: string}} quote
+     * @param {boolean} [withFade=true]
+     */
+    function displayQuote(quote, withFade = true) {
+      const render = () => {
+        currentQuote = { text: quote.text, author: quote.author };
+        quoteEl.textContent = `« ${quote.text} »`;
+        authorEl.textContent = `— ${quote.author}`;
+        quoteEl.classList.remove("fade");
+        updateFavoriteButton();
+      };
+
+      if (withFade) {
+        quoteEl.classList.add("fade");
+        setTimeout(render, 200);
+      } else {
+        render();
+      }
+    }
+
+    /**
      * Affiche une nouvelle citation aléatoire avec un petit effet de fondu.
      */
     function showRandomQuote() {
-      quoteEl.classList.add("fade");
-
-      setTimeout(() => {
-        const index = pickRandomIndex();
-        lastIndex = index;
-        const { text, author } = QUOTES[index];
-
-        quoteEl.textContent = `« ${text} »`;
-        authorEl.textContent = `— ${author}`;
-
-        quoteEl.classList.remove("fade");
-      }, 200);
+      const index = pickRandomIndex();
+      lastIndex = index;
+      displayQuote(QUOTES[index]);
     }
 
     /**
@@ -246,6 +404,9 @@
      * @returns {string}
      */
     function getCurrentQuoteText() {
+      if (currentQuote) {
+        return `« ${currentQuote.text} » — ${currentQuote.author}`;
+      }
       return `${quoteEl.textContent} ${authorEl.textContent}`.trim();
     }
 
@@ -276,6 +437,155 @@
       const text = getCurrentQuoteText();
       const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
       window.open(url, "_blank", "noopener,noreferrer");
+    }
+
+    // --- Gestion des favoris ---
+
+    /**
+     * Récupère la liste des citations favorites depuis le localStorage.
+     * @returns {Array<{text: string, author: string}>}
+     */
+    function getFavorites() {
+      try {
+        const raw = localStorage.getItem(FAVORITES_STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (error) {
+        return [];
+      }
+    }
+
+    /**
+     * Sauvegarde la liste des citations favorites dans le localStorage.
+     * @param {Array<{text: string, author: string}>} favorites
+     */
+    function saveFavorites(favorites) {
+      localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favorites));
+    }
+
+    /**
+     * Cherche l'index d'une citation dans la liste des favoris.
+     * @param {Array<{text: string, author: string}>} favorites
+     * @param {{text: string, author: string}} quote
+     * @returns {number}
+     */
+    function findFavoriteIndex(favorites, quote) {
+      return favorites.findIndex(
+        (fav) => fav.text === quote.text && fav.author === quote.author
+      );
+    }
+
+    /**
+     * Met à jour l'apparence du bouton favori selon que la citation
+     * affichée est déjà enregistrée ou non.
+     */
+    function updateFavoriteButton() {
+      if (!currentQuote) return;
+      const isFavorite = findFavoriteIndex(getFavorites(), currentQuote) !== -1;
+      favoriteBtn.textContent = isFavorite ? "⭐ Favori" : "☆ Favori";
+      favoriteBtn.classList.toggle("is-active", isFavorite);
+      favoriteBtn.setAttribute("aria-pressed", String(isFavorite));
+    }
+
+    /**
+     * Met à jour le compteur affiché sur le bouton "Favoris".
+     */
+    function updateFavoritesCount() {
+      favoritesViewBtn.textContent = `📁 Favoris (${getFavorites().length})`;
+    }
+
+    /**
+     * Ajoute ou retire la citation actuellement affichée des favoris.
+     */
+    function toggleFavorite() {
+      if (!currentQuote) return;
+
+      const favorites = getFavorites();
+      const index = findFavoriteIndex(favorites, currentQuote);
+
+      if (index === -1) {
+        favorites.push({ ...currentQuote });
+      } else {
+        favorites.splice(index, 1);
+      }
+
+      saveFavorites(favorites);
+      updateFavoriteButton();
+      updateFavoritesCount();
+    }
+
+    /**
+     * Retire une citation des favoris à partir de son index dans la liste.
+     * @param {number} index
+     */
+    function removeFavoriteAt(index) {
+      const favorites = getFavorites();
+      favorites.splice(index, 1);
+      saveFavorites(favorites);
+      renderFavoritesList();
+      updateFavoriteButton();
+      updateFavoritesCount();
+    }
+
+    /**
+     * (Re)construit le contenu de la liste des favoris dans la modale.
+     */
+    function renderFavoritesList() {
+      const favorites = getFavorites();
+      favoritesListEl.innerHTML = "";
+
+      if (favorites.length === 0) {
+        const emptyItem = document.createElement("li");
+        emptyItem.className = "favorites-empty";
+        emptyItem.textContent = "Aucune citation favorite pour le moment.";
+        favoritesListEl.appendChild(emptyItem);
+        return;
+      }
+
+      favorites.forEach((favorite, index) => {
+        const item = document.createElement("li");
+        item.className = "favorite-item";
+
+        const textBtn = document.createElement("button");
+        textBtn.type = "button";
+        textBtn.className = "favorite-item-text";
+        textBtn.innerHTML = `« ${favorite.text} »<br><strong>— ${favorite.author}</strong>`;
+        textBtn.addEventListener("click", () => {
+          displayQuote(favorite, false);
+          closeFavoritesModal();
+        });
+
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "favorite-item-remove";
+        removeBtn.textContent = "🗑️";
+        removeBtn.setAttribute("aria-label", "Retirer cette citation des favoris");
+        removeBtn.addEventListener("click", (event) => {
+          event.stopPropagation();
+          removeFavoriteAt(index);
+        });
+
+        item.appendChild(textBtn);
+        item.appendChild(removeBtn);
+        favoritesListEl.appendChild(item);
+      });
+    }
+
+    /**
+     * Ouvre la modale listant les citations favorites.
+     */
+    function openFavoritesModal() {
+      renderFavoritesList();
+      favoritesModal.classList.add("open");
+      favoritesModal.setAttribute("aria-hidden", "false");
+    }
+
+    /**
+     * Ferme la modale des favoris.
+     */
+    function closeFavoritesModal() {
+      favoritesModal.classList.remove("open");
+      favoritesModal.setAttribute("aria-hidden", "true");
     }
 
     // --- Gestion du thème (clair / sombre) ---
@@ -317,9 +627,25 @@
     copyBtn.addEventListener("click", copyQuote);
     shareBtn.addEventListener("click", shareOnX);
     themeToggleBtn.addEventListener("click", toggleTheme);
+    favoriteBtn.addEventListener("click", toggleFavorite);
+    favoritesViewBtn.addEventListener("click", openFavoritesModal);
+    favoritesCloseBtn.addEventListener("click", closeFavoritesModal);
+
+    favoritesModal.addEventListener("click", (event) => {
+      if (event.target === favoritesModal) {
+        closeFavoritesModal();
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && favoritesModal.classList.contains("open")) {
+        closeFavoritesModal();
+      }
+    });
 
     // --- Initialisation ---
     initTheme();
+    updateFavoritesCount();
     showRandomQuote();
   </script>
 </body>
